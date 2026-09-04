@@ -133,6 +133,23 @@ RAW_MODELS = [
     ("Snowflake Arctic",            "Open Source", 1180,  0.80),
 ]
 
+def _derive_prices(input_price: float):
+    """Derive plausible cached-input and output prices from a base input price.
+    Real-world ratios vary wildly; we use a simple heuristic that looks plausible:
+      - cached input ~ 25% of input (0.25x), floored at $0.01
+      - output ~ 3x input for expensive models, 4x for very cheap, 2.5x mid-range
+    """
+    cached = round(max(0.01, input_price * 0.25), 4)
+    # trim trailing zeros via rounding but keep storage precise
+    if input_price >= 5:
+        output = round(input_price * 3.0, 2)
+    elif input_price < 0.5:
+        output = round(input_price * 4.0, 2)
+    else:
+        output = round(input_price * 2.5, 2)
+    return cached, output
+
+
 def seed():
     con = sqlite3.connect(DB_PATH)
     cur = con.cursor()
@@ -140,23 +157,36 @@ def seed():
     cur.executescript("""
         DROP TABLE IF EXISTS models;
         CREATE TABLE models (
-            id       INTEGER PRIMARY KEY AUTOINCREMENT,
-            model    TEXT    NOT NULL,
-            provider TEXT    NOT NULL,
-            elo      INTEGER NOT NULL,
-            input    REAL    NOT NULL
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            model       TEXT    NOT NULL,
+            provider    TEXT    NOT NULL,
+            elo         INTEGER NOT NULL,
+            input       REAL    NOT NULL,
+            input_cache REAL    NOT NULL DEFAULT 0,
+            output      REAL    NOT NULL DEFAULT 0
         );
         CREATE INDEX IF NOT EXISTS idx_provider ON models(provider);
         CREATE INDEX IF NOT EXISTS idx_elo      ON models(elo);
     """)
 
+    # Expand 4-tuple RAW_MODELS -> 6-tuple with derived prices.
+    # If someone has already edited RAW_MODELS to 6-tuples, respect that.
+    expanded = []
+    for row in RAW_MODELS:
+        if len(row) == 6:
+            expanded.append(row)
+        else:
+            model, provider, elo, inp = row
+            cache, out = _derive_prices(float(inp))
+            expanded.append((model, provider, elo, inp, cache, out))
+
     cur.executemany(
-        "INSERT INTO models (model, provider, elo, input) VALUES (?, ?, ?, ?)",
-        RAW_MODELS
+        "INSERT INTO models (model, provider, elo, input, input_cache, output) VALUES (?, ?, ?, ?, ?, ?)",
+        expanded
     )
     con.commit()
     count = cur.execute("SELECT COUNT(*) FROM models").fetchone()[0]
-    print(f"✅  Seeded {count} models into {DB_PATH}")
+    print(f"Seeded {count} models into {DB_PATH}")
     con.close()
 
 if __name__ == "__main__":

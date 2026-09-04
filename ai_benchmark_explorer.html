@@ -65,7 +65,7 @@
     <header>
         <div>
             <h1>Global AI Benchmark &amp; Price Explorer</h1>
-            <p>Comparing Chatbot Arena Elo ratings against API / inference pricing per 1M tokens.</p>
+            <p>Comparing Chatbot Arena Elo vs. estimated daily cost for <code>(2000 cached input + 50 output) ×50 ×24</code> (=1200 req/day).</p>
             <p id="db-status" style="margin-top:6px;font-size:0.8rem;">⏳ Connecting to database…</p>
         </div>
         <div class="stats-bar">
@@ -91,10 +91,11 @@
             </div>
         </div>
         <div class="control-group">
-            <label>Max Price / 1M: <span id="max-price-val" class="val-badge">$75</span></label>
+            <label>Max Daily Cost: <span id="max-price-val" class="val-badge">$60</span></label>
             <div class="range-container">
-                <input type="range" id="max-price-range" min="0.1" max="75" step="0.5" value="75">
+                <input type="range" id="max-price-range" min="0" max="60" step="0.5" value="60">
             </div>
+            <span style="font-size:0.7rem;color:var(--text-secondary);">Estimated for (2000 cached input + 50 output) ×1,200 req/day</span>
         </div>
         <div class="control-group">
             <label>Price Scale</label>
@@ -119,7 +120,10 @@
                         <th onclick="sortTable('model')">Model Name ⇕</th>
                         <th onclick="sortTable('provider')">Provider ⇕</th>
                         <th class="numeric" onclick="sortTable('elo')">Arena Elo ⇕</th>
-                        <th class="numeric" onclick="sortTable('input')">Input Price / 1M ⇕</th>
+                        <th class="numeric" onclick="sortTable('input')">Input / 1M ⇕</th>
+                        <th class="numeric" onclick="sortTable('input_cache')">Cache / 1M ⇕</th>
+                        <th class="numeric" onclick="sortTable('output')">Output / 1M ⇕</th>
+                        <th class="numeric" onclick="sortTable('daily_cost')">Est. $/day ⇕</th>
                     </tr>
                 </thead>
                 <tbody id="table-body"></tbody>
@@ -130,8 +134,18 @@
 
 <script>
 // ── Config ────────────────────────────────────────────────────────────────────
-// Point this at your Flask server (default: localhost:5050)
-const API_BASE = "http://localhost:5050/api";
+// In production (served from Flask at /) use same-origin /api; for file:// fallback use localhost:5050
+const API_BASE = (() => {
+    if (location.protocol === 'file:') return "http://localhost:5050/api";
+    if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+        // allow override via ?api=... and handle both dev modes (HTML via Flask vs file)
+        const p = new URLSearchParams(location.search).get('api');
+        if (p) return p.replace(/\/$/, '');
+        // if page is served by Flask on same host, use relative; otherwise fallback to 5050
+        return location.port === '5050' || location.port === '' ? `${location.origin}/api` : "http://localhost:5050/api";
+    }
+    return `${location.origin}/api`;
+})();
 
 // Fallback hardcoded data used when the API is unreachable
 const rawModels = [
@@ -297,6 +311,46 @@ let sortField = 'elo';
 let sortDirection = -1;
 let usingApi = false;         // true when Flask is reachable
 
+// ── Helpers to ensure every model has input / input_cache / output ──────────
+function derivePrices(inp) {
+    inp = Number(inp) || 0;
+    const cache = Math.max(0.01, Math.round(inp * 0.25 * 10000) / 10000);
+    let out;
+    if (inp >= 5) out = Math.round(inp * 3.0 * 100) / 100;
+    else if (inp < 0.5) out = Math.round(inp * 4.0 * 100) / 100;
+    else out = Math.round(inp * 2.5 * 100) / 100;
+    return { input_cache: cache, output: out };
+}
+function normalizeModel(m) {
+    const inp = Number(m.input) || 0;
+    let cache = m.input_cache;
+    if (cache === undefined || cache === null) cache = m.inputCache ?? m.cached_input ?? null;
+    let out = m.output;
+    if (out === undefined || out === null) out = m.output_price ?? m.outputPrice ?? null;
+    const derived = derivePrices(inp);
+    if (cache === null || cache === undefined || cache === 0) cache = derived.input_cache;
+    if (out === null || out === undefined || out === 0) out = derived.output;
+    const norm = { ...m, input: inp, input_cache: Number(cache), output: Number(out) };
+    norm.daily_cost = estimatedDailyCost(norm);
+    return norm;
+}
+function fmtPrice(v) {
+    const n = Number(v);
+    if (isNaN(n)) return '-';
+    if (n < 0.1) return '$' + n.toFixed(3);
+    return '$' + n.toFixed(2);
+}
+// ── Estimated daily cost: (2000 cached input + 50 output) ×50×24 = ×1200 req/day ──
+const TOKENS_IN_CACHED = 2000;
+const TOKENS_OUT = 50;
+const REQS_PER_DAY = 50 * 24; // 1200
+function estimatedDailyCost(m) {
+    const cache = Number(m.input_cache) || 0;
+    const out   = Number(m.output) || 0;
+    // (tokens/1M)*price * reqs_per_day
+    return ((TOKENS_IN_CACHED * cache + TOKENS_OUT * out) / 1_000_000) * REQS_PER_DAY;
+}
+
 // ── Status banner ─────────────────────────────────────────────────────────────
 function setStatus(msg, color) {
     let bar = document.getElementById('db-status');
@@ -316,14 +370,14 @@ async function init() {
         // 2. Load all models from API
         const modRes = await fetch(`${API_BASE}/models`, { signal: AbortSignal.timeout(3000) });
         if (!modRes.ok) throw new Error('models endpoint failed');
-        allData = await modRes.json();
+        allData = (await modRes.json()).map(normalizeModel);
         usingApi = true;
         setStatus(`✅ Connected to SQLite via API — ${allData.length} models loaded`, '#4ade80');
     } catch (err) {
         // Fallback to hardcoded array
-        allData = rawModels;
+        allData = rawModels.map(normalizeModel);
         usingApi = false;
-        const providers = [...new Set(rawModels.map(m => m.provider))].sort();
+        const providers = [...new Set(allData.map(m => m.provider))].sort();
         populateProviderSelect(providers);
         setStatus(`⚠️ API unreachable — using built-in data (${rawModels.length} models). Run server.py to enable live DB.`, '#f59e0b');
     }
@@ -365,13 +419,15 @@ async function applyFilters() {
     const maxPrice = parseFloat(document.getElementById('max-price-range').value);
 
     if (usingApi) {
-        // Build query string and fetch from SQLite via API
-        const params = new URLSearchParams({ min_elo: minElo, max_input: maxPrice });
+        // Build query string and fetch from SQLite via API (filter by daily cost server-side)
+        const params = new URLSearchParams({ min_elo: minElo, max_daily_cost: maxPrice });
         if (search)                    params.set('q', search);
         if (provider && provider !== 'ALL') params.set('provider', provider);
         try {
             const res = await fetch(`${API_BASE}/models?${params}`, { signal: AbortSignal.timeout(3000) });
-            filteredData = await res.json();
+            const data = (await res.json()).map(normalizeModel);
+            // extra client-side clamp in case API still returns out-of-range due to legacy max_input
+            filteredData = data.filter(m => m.daily_cost <= maxPrice);
         } catch {
             // API went down mid-session — fall back silently
             filteredData = clientFilter(allData, search, provider, minElo, maxPrice);
@@ -391,7 +447,8 @@ function clientFilter(data, search, provider, minElo, maxPrice) {
         const matchesSearch   = !q || m.model.toLowerCase().includes(q) || m.provider.toLowerCase().includes(q);
         const matchesProvider = !provider || provider === 'ALL' || m.provider === provider;
         const matchesElo      = m.elo >= minElo;
-        const matchesPrice    = m.input <= maxPrice;
+        const daily = m.daily_cost ?? estimatedDailyCost(m);
+        const matchesPrice    = daily <= maxPrice;
         return matchesSearch && matchesProvider && matchesElo && matchesPrice;
     });
 }
@@ -403,7 +460,8 @@ function renderChart() {
     const grouped = {};
     filteredData.forEach(d => {
         if (!grouped[d.provider]) grouped[d.provider] = [];
-        grouped[d.provider].push({ x: d.input, y: d.elo, raw: d });
+        const daily = d.daily_cost ?? estimatedDailyCost(d);
+        grouped[d.provider].push({ x: daily, y: d.elo, raw: d });
     });
 
     const datasets = Object.keys(grouped).map(prov => ({
@@ -435,7 +493,12 @@ function renderChart() {
                     callbacks: {
                         label: (ctx) => {
                             const d = ctx.raw.raw;
-                            return `${d.model} (${d.provider}): ${d.elo} Elo | $${d.input}/1M tokens`;
+                            const daily = d.daily_cost ?? estimatedDailyCost(d);
+                            return `${d.model} (${d.provider}): ${d.elo} Elo | In $${d.input} Cache $${d.input_cache} Out $${d.output} /1M → $${daily.toFixed(2)}/day`;
+                        },
+                        afterLabel: (ctx) => {
+                            const d = ctx.raw.raw;
+                            return `  = (2000×$${d.input_cache} + 50×$${d.output})/1M ×1200`;
                         }
                     }
                 }
@@ -443,10 +506,10 @@ function renderChart() {
             scales: {
                 x: {
                     type: isLog ? 'logarithmic' : 'linear',
-                    title: { display: true, text: 'Input Price ($ per 1 Million Tokens)', color: '#94a3b8' },
+                    title: { display: true, text: 'Est. Cost / Day — (2000 cached input + 50 output) ×50×24 ($/day)', color: '#94a3b8' },
                     grid: { color: 'rgba(255,255,255,0.05)' },
-                    ticks: { color: '#94a3b8' },
-                    min: isLog ? 0.01 : 0
+                    ticks: { color: '#94a3b8', callback: v => '$' + v },
+                    min: isLog ? 0.02 : 0
                 },
                 y: {
                     title: { display: true, text: 'Chatbot Arena Elo Rating', color: '#94a3b8' },
@@ -472,12 +535,16 @@ function renderTable() {
     });
 
     filteredData.forEach(d => {
+        const daily = d.daily_cost ?? estimatedDailyCost(d);
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td><strong>${d.model}</strong></td>
             <td><span style="color:${providerColors[d.provider] || '#fff'};">●</span> ${d.provider}</td>
             <td class="numeric">${d.elo}</td>
-            <td class="numeric">$${d.input.toFixed(d.input < 0.1 ? 3 : 2)}</td>
+            <td class="numeric">${fmtPrice(d.input)}</td>
+            <td class="numeric">${fmtPrice(d.input_cache)}</td>
+            <td class="numeric">${fmtPrice(d.output)}</td>
+            <td class="numeric" title="(2000×${d.input_cache}+50×${d.output})/1M×1200">$${daily.toFixed(2)}</td>
         `;
         tbody.appendChild(tr);
     });
