@@ -1,567 +1,532 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Global AI Models: Benchmark (Elo) vs. Price Explorer</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        :root {
-            --bg-primary: #0f172a;
-            --bg-card: #1e293b;
-            --text-primary: #f8fafc;
-            --text-secondary: #94a3b8;
-            --accent: #38bdf8;
-            --border: #334155;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { background: var(--bg-primary); color: var(--text-primary); padding: 24px; }
-        .wrapper { max-width: 1300px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
-        
-        header { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--border); padding-bottom: 16px; }
-        header h1 { font-size: 1.5rem; font-weight: 700; color: #fff; }
-        header p { color: var(--text-secondary); font-size: 0.9rem; }
-        
-        .controls {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-            background: var(--bg-card);
-            padding: 18px;
-            border-radius: 10px;
-            border: 1px solid var(--border);
-        }
-        .control-group { display: flex; flex-direction: column; gap: 6px; }
-        label { font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; }
-        input[type="text"], select {
-            background: #0f172a;
-            color: #fff;
-            border: 1px solid var(--border);
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 0.9rem;
-        }
-        .range-container { display: flex; align-items: center; gap: 10px; }
-        input[type="range"] { flex: 1; accent-color: var(--accent); }
-        .val-badge { font-variant-numeric: tabular-nums; font-size: 0.85rem; min-width: 45px; text-align: right; color: var(--accent); }
-
-        .card { background: var(--bg-card); padding: 20px; border-radius: 10px; border: 1px solid var(--border); }
-        .chart-container { position: relative; height: 500px; width: 100%; }
-
-        .stats-bar { display: flex; justify-content: space-between; color: var(--text-secondary); font-size: 0.85rem; }
-
-        .table-container { max-height: 400px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; }
-        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem; }
-        th { background: #0f172a; padding: 12px; position: sticky; top: 0; color: var(--text-secondary); cursor: pointer; user-select: none; }
-        th:hover { color: #fff; }
-        td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
-        tr:hover { background: rgba(255,255,255,0.03); }
-        .numeric { text-align: right; font-variant-numeric: tabular-nums; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global AI Models — Benchmark × Cost Explorer</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* ── Design tokens ───────────────────────────────────────────── */
+:root{
+  --bg-0:#060A16; --bg-1:#0B1224; --bg-2:#0F1B33; --bg-3:#12213E;
+  --surface:#0F1B33; --surface-2:#162744; --surface-3:#1B2E4F;
+  --border:#1E3356; --border-2:#243A5E;
+  --text:#EAF0FF; --text-2:#A0B3D1; --text-3:#7F92B5;
+  --accent:#3DD68C; --accent-2:#2AB98A; --accent-soft:rgba(61,214,140,.12);
+  --warning:#F59E0B; --danger:#F43F5E;
+  --radius-xl:18px; --radius-lg:14px; --radius-md:10px; --radius-sm:8px;
+  --shadow:0 10px 22px rgba(0,0,0,.32), 0 1px 0 rgba(255,255,255,.05) inset;
+  --font-sans:Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-mono:"JetBrains Mono", ui-monospace, monospace;
+}
+*{box-sizing:border-box}
+html{scrollbar-gutter:stable}
+body{
+  margin:0; font-family:var(--font-sans); background:var(--bg-0);
+  color:var(--text); -webkit-font-smoothing:antialiased;
+  line-height:1.5; font-size:15px;
+  background:
+    radial-gradient(1200px 600px at 70% -10%, rgba(61,214,140,.09), transparent 60%),
+    radial-gradient(900px 500px at 0% 0%, rgba(56,189,248,.08), transparent 60%),
+    linear-gradient(180deg, var(--bg-0), var(--bg-1));
+  min-height:100vh;
+}
+a{color:inherit}
+code{font-family:var(--font-mono); font-size:.85em; background:rgba(255,255,255,.06); padding:2px 6px; border-radius:6px; border:1px solid rgba(255,255,255,.08)}
+/* ── Shell ───────────────────────────────────────────────────── */
+.shell{max-width:1360px; margin:0 auto; padding:28px 24px 40px; display:flex; flex-direction:column; gap:18px}
+.topbar{
+  display:flex; gap:18px; align-items:flex-start; justify-content:space-between; flex-wrap:wrap;
+  padding-bottom:16px; border-bottom:1px solid var(--border);
+}
+.brand{display:flex; gap:14px; align-items:center}
+.mark{
+  width:42px; height:42px; border-radius:12px; display:grid; place-items:center;
+  background: linear-gradient(135deg, var(--accent), #38BDF8); color:#04121A; font-weight:800; font-size:16px;
+  box-shadow:0 8px 18px rgba(0,0,0,.28);
+}
+.brand h1{margin:0; font-size:22px; line-height:1.1; font-weight:800; letter-spacing:-.02em}
+.brand p{margin:4px 0 0; color:var(--text-2); font-size:13.5px; max-width:62ch}
+.pill{
+  display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:999px;
+  background:var(--surface); border:1px solid var(--border); color:var(--text-2); font-size:12.5px; font-weight:500;
+}
+.dot{width:8px; height:8px; border-radius:999px; background:var(--accent); box-shadow:0 0 0 6px rgba(61,214,140,.14)}
+.stats{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+.stat{
+  padding:10px 14px; border-radius:999px; background:var(--surface); border:1px solid var(--border);
+  font-size:13px; color:var(--text-2)
+}
+.stat strong{color:var(--text); font-weight:700; font-family:var(--font-mono)}
+#db-status{font-size:12px; color:var(--text-3); margin-top:8px}
+/* ── Filters ─────────────────────────────────────────────────── */
+.filters{
+  display:grid; grid-template-columns:1.2fr .9fr .9fr .9fr auto;
+  gap:12px; padding:14px; background:rgba(15,27,51,.92); backdrop-filter: blur(8px);
+  border:1px solid var(--border); border-radius:var(--radius-xl); box-shadow:var(--shadow);
+}
+@media (max-width:1080px){.filters{grid-template-columns:1fr 1fr;}}
+@media (max-width:640px){.filters{grid-template-columns:1fr;}}
+.fg{display:flex; flex-direction:column; gap:7px; padding:12px; background:rgba(255,255,255,.015); border:1px solid rgba(255,255,255,.06); border-radius:12px}
+.fg label{font-size:11.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--text-3)}
+.fg small{font-size:11px; color:var(--text-3); line-height:1.3}
+.input, .select{
+  width:100%; height:40px; padding:0 12px; border-radius:10px; border:1px solid var(--border);
+  background:var(--bg-1); color:var(--text); font-size:14px; outline:none;
+  transition:border .15s, box-shadow .15s, background .15s;
+}
+.input::placeholder{color:var(--text-3)}
+.input:focus, .select:focus{border-color:rgba(61,214,140,.5); box-shadow:0 0 0 4px var(--accent-soft); background:#0A1226}
+.select{cursor:pointer}
+.range-row{display:flex; align-items:center; gap:10px}
+input[type="range"]{flex:1; accent-color:var(--accent); height:6px}
+.badge{
+  min-width:66px; text-align:right; font-family:var(--font-mono); font-weight:600; font-size:13px;
+  color:var(--accent); background:var(--accent-soft); border:1px solid rgba(61,214,140,.2);
+  padding:6px 8px; border-radius:999px;
+}
+/* ── Cards ───────────────────────────────────────────────────── */
+.card{
+  background:linear-gradient(180deg, rgba(22,39,68,.98), rgba(15,27,51,.98));
+  border:1px solid var(--border); border-radius:var(--radius-xl); box-shadow:var(--shadow); overflow:hidden;
+}
+.card-head{
+  display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+  padding:16px 18px; border-bottom:1px solid var(--border); background:rgba(255,255,255,.02);
+}
+.card-head h2{margin:0; font-size:12.5px; font-weight:800; letter-spacing:.07em; text-transform:uppercase; color:var(--text-2)}
+.card-head .hint{font-size:12.5px; color:var(--text-3)}
+.chart-wrap{padding:16px 16px 12px}
+.chart-box{position:relative; height:520px; width:100%; background:rgba(6,10,22,.45); border:1px solid rgba(255,255,255,.04); border-radius:12px; padding:10px}
+@media (max-width:700px){.chart-box{height:420px}}
+/* ── Table ───────────────────────────────────────────────────── */
+.table-head{
+  display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+  padding:14px 16px; border-bottom:1px solid var(--border); background:rgba(255,255,255,.02);
+}
+.table-head h2{margin:0; font-size:12.5px; font-weight:800; letter-spacing:.07em; text-transform:uppercase; color:var(--text-2)}
+.table-meta{font-size:12.5px; color:var(--text-3)}
+.table-meta strong{color:var(--text); font-family:var(--font-mono)}
+.table-scroller{max-height:460px; overflow:auto; scrollbar-width:thin}
+table{width:100%; border-collapse:separate; border-spacing:0; font-size:14px; min-width:860px}
+thead th{
+  position:sticky; top:0; z-index:1; background:rgba(10,18,38,.98); backdrop-filter:blur(6px);
+  text-align:left; font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--text-3); padding:12px 14px; border-bottom:1px solid var(--border); cursor:pointer; user-select:none; white-space:nowrap;
+}
+thead th:hover{color:var(--text)}
+thead th.numeric, td.numeric{text-align:right; font-variant-numeric:tabular-nums; font-family:var(--font-mono)}
+tbody td{padding:12px 14px; border-bottom:1px solid rgba(255,255,255,.06); color:var(--text)}
+tbody tr:hover td{background:rgba(61,214,140,.05)}
+tbody td:first-child strong{font-weight:650; letter-spacing:-.01em}
+.provider{display:inline-flex; align-items:center; gap:8px; font-weight:600; font-size:13px}
+.pdot{width:8px; height:8px; border-radius:999px; border:1px solid rgba(255,255,255,.15)}
+.cost-pill{
+  display:inline-flex; padding:4px 8px; border-radius:999px; font-size:12.5px; font-weight:700; font-family:var(--font-mono);
+  background:var(--accent-soft); border:1px solid rgba(61,214,140,.22); color:var(--accent);
+}
+.elo{font-family:var(--font-mono); font-weight:650}
+.muted{color:var(--text-2)}
+.empty{padding:28px; text-align:center; color:var(--text-3); font-size:14px}
+/* ── Focus & motion ─────────────────────────────────────────── */
+*:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:6px}
+@media (prefers-reduced-motion:no-preference){
+  .card, .fg, .stat, .pill{transition:transform .18s ease, border-color .18s ease, background .18s ease}
+  .fg:focus-within{transform:translateY(-1px); border-color:rgba(61,214,140,.22)}
+}
+</style>
 </head>
 <body>
-
-<div class="wrapper">
-    <header>
-        <div>
-            <h1>Global AI Benchmark &amp; Price Explorer</h1>
-            <p>Comparing Chatbot Arena Elo vs. estimated daily cost for <code>(2000 cached input + 50 output) ×50 ×24</code> (=1200 req/day).</p>
-            <p id="db-status" style="margin-top:6px;font-size:0.8rem;">⏳ Connecting to database…</p>
-        </div>
-        <div class="stats-bar">
-            <span>Showing <strong id="visible-count" style="color:var(--accent);">0</strong> of <strong id="total-count">0</strong> models</span>
-        </div>
-    </header>
-
-    <div class="controls">
-        <div class="control-group">
-            <label>Search Model / Family</label>
-            <input type="text" id="search-input" placeholder="e.g. Claude, Qwen, mini, 70b...">
-        </div>
-        <div class="control-group">
-            <label>Provider</label>
-            <select id="provider-select">
-                <option value="ALL">All Providers (Global)</option>
-            </select>
-        </div>
-        <div class="control-group">
-            <label>Min Arena Elo: <span id="min-elo-val" class="val-badge">900</span></label>
-            <div class="range-container">
-                <input type="range" id="min-elo-range" min="900" max="1550" step="10" value="900">
-            </div>
-        </div>
-        <div class="control-group">
-            <label>Max Daily Cost: <span id="max-price-val" class="val-badge">$60</span></label>
-            <div class="range-container">
-                <input type="range" id="max-price-range" min="0" max="60" step="0.5" value="60">
-            </div>
-            <span style="font-size:0.7rem;color:var(--text-secondary);">Estimated for (2000 cached input + 50 output) ×1,200 req/day</span>
-        </div>
-        <div class="control-group">
-            <label>Price Scale</label>
-            <select id="scale-select">
-                <option value="logarithmic">Logarithmic (Recommended)</option>
-                <option value="linear">Linear</option>
-            </select>
-        </div>
+<div class="shell">
+  <!-- Header -->
+  <div class="topbar">
+    <div class="brand">
+      <div class="mark">◈</div>
+      <div>
+        <h1>Benchmark × Cost Explorer</h1>
+        <p>Chatbot Arena Elo vs. realistic inference cost — <code>2000 cached input + 50 output</code> × <code>50 × 24</code> (1 200 req/day).<br>Scatter by daily $/day, table by provider pricing.</p>
+        <div id="db-status">⏳ Connecting to database…</div>
+      </div>
     </div>
-
-    <div class="card">
-        <div class="chart-container">
-            <canvas id="benchmarkChart"></canvas>
-        </div>
+    <div class="stats">
+      <div class="stat">Showing <strong id="visible-count">0</strong> of <strong id="total-count">0</strong> models</div>
+      <div class="pill"><span class="dot"></span> <span id="scale-hint">Log scale</span> • 1 200 req/day</div>
     </div>
+  </div>
 
-    <div class="card" style="padding: 0; overflow: hidden;">
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th onclick="sortTable('model')">Model Name ⇕</th>
-                        <th onclick="sortTable('provider')">Provider ⇕</th>
-                        <th class="numeric" onclick="sortTable('elo')">Arena Elo ⇕</th>
-                        <th class="numeric" onclick="sortTable('input')">Input / 1M ⇕</th>
-                        <th class="numeric" onclick="sortTable('input_cache')">Cache / 1M ⇕</th>
-                        <th class="numeric" onclick="sortTable('output')">Output / 1M ⇕</th>
-                        <th class="numeric" onclick="sortTable('daily_cost')">Est. $/day ⇕</th>
-                    </tr>
-                </thead>
-                <tbody id="table-body"></tbody>
-            </table>
-        </div>
+  <!-- Filters -->
+  <div class="filters" role="search" aria-label="Filters">
+    <div class="fg">
+      <label for="search-input">Search model / provider</label>
+      <input class="input" type="text" id="search-input" placeholder="Claude, GPT-5, 70B, mini…">
+      <small>Matches model name and provider</small>
     </div>
+    <div class="fg">
+      <label for="provider-select">Provider</label>
+      <select class="select" id="provider-select" aria-label="Provider"><option value="ALL">All providers</option></select>
+    </div>
+    <div class="fg">
+      <label for="min-elo-range">Min Elo <span class="muted" style="text-transform:none; letter-spacing:0; font-weight:600">— Arena rating</span></label>
+      <div class="range-row">
+        <input type="range" id="min-elo-range" min="900" max="1550" step="10" value="900" aria-label="Minimum Elo">
+        <span class="badge" id="min-elo-val">900</span>
+      </div>
+    </div>
+    <div class="fg">
+      <label for="max-price-range">Max daily cost</label>
+      <div class="range-row">
+        <input type="range" id="max-price-range" min="0" max="60" step="0.5" value="60" aria-label="Max daily cost">
+        <span class="badge" id="max-price-val">$60</span>
+      </div>
+      <small>for (2k cached + 50 out) ×1 200 req/day</small>
+    </div>
+    <div class="fg">
+      <label for="scale-select">X scale</label>
+      <select class="select" id="scale-select" aria-label="Price scale">
+        <option value="logarithmic">Logarithmic · recommended</option>
+        <option value="linear">Linear</option>
+      </select>
+      <small>Daily $/day, log handles 10¢ → $60</small>
+    </div>
+  </div>
+
+  <!-- Chart -->
+  <div class="card">
+    <div class="card-head">
+      <h2>Elo vs. Daily Cost</h2>
+      <span class="hint">Hover for breakdown · color = provider · size = Elo order</span>
+    </div>
+    <div class="chart-wrap"><div class="chart-box"><canvas id="benchmarkChart"></canvas></div></div>
+  </div>
+
+  <!-- Table -->
+  <div class="card">
+    <div class="table-head">
+      <h2>Models</h2>
+      <div class="table-meta"><span id="table-meta">Sorted by Elo ↓</span> • click headers to sort</div>
+    </div>
+    <div class="table-scroller">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortTable('model')">Model ⇕</th>
+            <th onclick="sortTable('provider')">Provider ⇕</th>
+            <th class="numeric" onclick="sortTable('elo')">Arena Elo ⇕</th>
+            <th class="numeric" onclick="sortTable('input')">Input /1M ⇕</th>
+            <th class="numeric" onclick="sortTable('input_cache')">Cache /1M ⇕</th>
+            <th class="numeric" onclick="sortTable('output')">Output /1M ⇕</th>
+            <th class="numeric" onclick="sortTable('daily_cost')">Est. $/day ⇕</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
 <script>
-// ── Config ────────────────────────────────────────────────────────────────────
-// In production (served from Flask at /) use same-origin /api; for file:// fallback use localhost:5050
+// ── Config ─────────────────────────────────────────────────────
+// In production served from Flask at / use same-origin /api; file:// fallback uses localhost:5050
 const API_BASE = (() => {
-    if (location.protocol === 'file:') return "http://localhost:5050/api";
-    if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
-        // allow override via ?api=... and handle both dev modes (HTML via Flask vs file)
-        const p = new URLSearchParams(location.search).get('api');
-        if (p) return p.replace(/\/$/, '');
-        // if page is served by Flask on same host, use relative; otherwise fallback to 5050
-        return location.port === '5050' || location.port === '' ? `${location.origin}/api` : "http://localhost:5050/api";
-    }
-    return `${location.origin}/api`;
+  if (location.protocol === 'file:') return "http://localhost:5050/api";
+  const p = new URLSearchParams(location.search).get('api');
+  if (p) return p.replace(/\/$/, '');
+  if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+    return location.port === '5050' || location.port === '' ? `${location.origin}/api` : "http://localhost:5050/api";
+  }
+  return `${location.origin}/api`;
 })();
 
-// Fallback hardcoded data used when the API is unreachable
+// ── Fallback data (API preferred) ──────────────────────────────
 const rawModels = [
-    // ── 2026 Frontier Giants ─────────────────────────────────────────────────
-    { model: 'Claude Fable 5.1',            provider: 'Anthropic',   elo: 1507, input: 10.00 },
-    { model: 'Claude Fable 5.1 Max',        provider: 'Anthropic',   elo: 1504, input: 15.00 },
-    { model: 'Claude Opus 4.6 (High)',      provider: 'Anthropic',   elo: 1505, input:  5.00 },
-    { model: 'Claude Opus 4.7 (High)',      provider: 'Anthropic',   elo: 1502, input:  5.00 },
-    { model: 'Muse Spark 1.2 (xHigh)',      provider: 'Meta',        elo: 1499, input:  1.25 },
-    { model: 'Claude Opus 4.6',             provider: 'Anthropic',   elo: 1498, input:  5.00 },
-    { model: 'Grok 4.6',                    provider: 'xAI',         elo: 1496, input:  2.00 },
-    { model: 'Claude Opus 4.7',             provider: 'Anthropic',   elo: 1494, input:  5.00 },
-    { model: 'Gemini 3.8 Flash High',       provider: 'Google',      elo: 1494, input:  0.75 },
-    { model: 'Claude Opus 5 (High)',        provider: 'Anthropic',   elo: 1493, input:  5.00 },
-    { model: 'Muse Spark 1.1',              provider: 'Meta',        elo: 1492, input:  1.25 },
-    { model: 'Gemini 3.7 Flash High',       provider: 'Google',      elo: 1491, input:  0.75 },
-    { model: 'Kimi K3 Max',                 provider: 'Moonshot AI', elo: 1489, input:  3.00 },
-    { model: 'Claude Sonnet 5 (High)',      provider: 'Anthropic',   elo: 1486, input:  2.00 },
-    { model: 'GPT-5.5',                     provider: 'OpenAI',      elo: 1485, input:  5.00 },
-    { model: 'GPT-5.6 Sol',                 provider: 'OpenAI',      elo: 1483, input:  5.00 },
-    { model: 'GLM 5.3 Max',                 provider: 'Zhipu AI',    elo: 1482, input:  1.40 },
-    { model: 'Qwen 3.8 Max',               provider: 'Alibaba',     elo: 1480, input:  2.00 },
-    { model: 'Gemini 3.1 Pro',             provider: 'Google',      elo: 1480, input:  2.00 },
-    { model: 'GPT-5.6 Terra',              provider: 'OpenAI',      elo: 1479, input:  2.00 },
-    { model: 'Muse Spark',                 provider: 'Meta',        elo: 1474, input:  1.25 },
-    { model: 'GLM 5.3 Flash',              provider: 'Zhipu AI',    elo: 1473, input:  0.15 },
-    { model: 'Gemini 3.5 Flash',            provider: 'Google',      elo: 1470, input:  1.50 },
-    { model: 'Ernie 5.1',                   provider: 'Baidu',       elo: 1468, input:  0.59 },
-    { model: 'GLM 5.2 (Max)',               provider: 'Zhipu AI',    elo: 1468, input:  1.40 },
-    { model: 'DeepSeek V4 Pro',             provider: 'DeepSeek',    elo: 1460, input:  0.43 },
-    { model: 'GPT-5.6 Luna',               provider: 'OpenAI',      elo: 1445, input:  0.20 },
-    { model: 'DeepSeek V4 Flash',           provider: 'DeepSeek',    elo: 1435, input:  0.14 },
-    { model: 'DeepSeek V3.2',              provider: 'DeepSeek',    elo: 1423, input:  0.28 },
-    { model: 'Mistral Large 3',             provider: 'Mistral',     elo: 1420, input:  3.00 },
-    { model: 'Qwen 3.8-Flash-Next',        provider: 'Alibaba',     elo: 1410, input:  0.20 },
-    { model: 'Llama 4 Scout',              provider: 'Meta',        elo: 1400, input:  0.11 },
-    { model: 'DeepSeek R1',                provider: 'DeepSeek',    elo: 1395, input:  0.55 },
-
-    // ── OpenAI — GPT-5.x family (Aug 2025 → present) ─────────────────────────
-    { model: 'GPT-5.5 Pro',                provider: 'OpenAI',      elo: 1490, input: 30.00 },
-    { model: 'GPT-5.4 Pro',                provider: 'OpenAI',      elo: 1480, input: 30.00 },
-    { model: 'GPT-5.4',                    provider: 'OpenAI',      elo: 1473, input:  2.50 },
-    { model: 'GPT-5.4 Mini',               provider: 'OpenAI',      elo: 1440, input:  0.75 },
-    { model: 'GPT-5.4 Nano',               provider: 'OpenAI',      elo: 1415, input:  0.20 },
-    { model: 'GPT-5.3',                    provider: 'OpenAI',      elo: 1460, input:  1.75 },
-    { model: 'GPT-5.2',                    provider: 'OpenAI',      elo: 1445, input:  1.25 },
-    { model: 'GPT-5.1',                    provider: 'OpenAI',      elo: 1430, input:  1.25 },
-    { model: 'GPT-5',                      provider: 'OpenAI',      elo: 1415, input:  1.25 },
-    { model: 'GPT-5 Mini',                 provider: 'OpenAI',      elo: 1385, input:  0.25 },
-    { model: 'GPT-5 Nano',                 provider: 'OpenAI',      elo: 1355, input:  0.05 },
-
-    // ── OpenAI — GPT-4.x & o-series (pre-GPT-5, still listed) ────────────────
-    { model: 'GPT-4.1',                    provider: 'OpenAI',      elo: 1310, input: 10.00 },
-    { model: 'GPT-4.1 Mini',               provider: 'OpenAI',      elo: 1285, input:  0.40 },
-    { model: 'GPT-4.1 Nano',               provider: 'OpenAI',      elo: 1260, input:  0.10 },
-    { model: 'GPT-4.5 Preview',            provider: 'OpenAI',      elo: 1300, input: 75.00 },
-    { model: 'o4-mini',                    provider: 'OpenAI',      elo: 1375, input:  1.10 },
-    { model: 'o4-mini (High)',             provider: 'OpenAI',      elo: 1385, input:  1.10 },
-    { model: 'o3',                         provider: 'OpenAI',      elo: 1390, input:  2.00 },
-    { model: 'o3-pro',                     provider: 'OpenAI',      elo: 1400, input: 20.00 },
-    { model: 'o3-mini',                    provider: 'OpenAI',      elo: 1360, input:  1.10 },
-    { model: 'o1',                         provider: 'OpenAI',      elo: 1355, input: 15.00 },
-    { model: 'o1-preview',                 provider: 'OpenAI',      elo: 1335, input: 15.00 },
-    { model: 'o1-mini',                    provider: 'OpenAI',      elo: 1305, input:  3.00 },
-    { model: 'GPT-4o',                     provider: 'OpenAI',      elo: 1286, input:  2.50 },
-    { model: 'GPT-4o-mini',                provider: 'OpenAI',      elo: 1270, input:  0.15 },
-    { model: 'GPT-4 Turbo (0409)',         provider: 'OpenAI',      elo: 1248, input: 10.00 },
-    { model: 'GPT-3.5 Turbo',             provider: 'OpenAI',      elo: 1110, input:  0.50 },
-
-    // ── Anthropic — Claude 4.x & 5.x (May 2025 → present) ───────────────────
-    { model: 'Claude Fable 5',             provider: 'Anthropic',   elo: 1500, input: 10.00 },
-    { model: 'Claude Opus 5',              provider: 'Anthropic',   elo: 1490, input:  5.00 },
-    { model: 'Claude Sonnet 5',            provider: 'Anthropic',   elo: 1480, input:  2.00 },
-    { model: 'Claude Haiku 4.5',           provider: 'Anthropic',   elo: 1390, input:  1.00 },
-    { model: 'Claude Opus 4.8',            provider: 'Anthropic',   elo: 1478, input:  5.00 },
-    { model: 'Claude Opus 4.5',            provider: 'Anthropic',   elo: 1462, input:  5.00 },
-    { model: 'Claude Opus 4.1',            provider: 'Anthropic',   elo: 1448, input:  5.00 },
-    { model: 'Claude Sonnet 4.6',          provider: 'Anthropic',   elo: 1430, input:  3.00 },
-    { model: 'Claude Sonnet 4.5',          provider: 'Anthropic',   elo: 1415, input:  3.00 },
-    { model: 'Claude Sonnet 4',            provider: 'Anthropic',   elo: 1400, input:  3.00 },
-    { model: 'Claude Opus 4',              provider: 'Anthropic',   elo: 1392, input:  5.00 },
-    { model: 'Claude 3.7 Sonnet (Thinking)',provider: 'Anthropic',  elo: 1395, input:  3.00 },
-
-    // ── Anthropic — Claude 3.x legacy ────────────────────────────────────────
-    { model: 'Claude 3.5 Sonnet (Oct)',    provider: 'Anthropic',   elo: 1340, input:  3.00 },
-    { model: 'Claude 3.5 Haiku',           provider: 'Anthropic',   elo: 1250, input:  0.80 },
-    { model: 'Claude 3 Opus',              provider: 'Anthropic',   elo: 1240, input: 15.00 },
-    { model: 'Claude 3 Sonnet',            provider: 'Anthropic',   elo: 1175, input:  3.00 },
-    { model: 'Claude 3 Haiku',             provider: 'Anthropic',   elo: 1155, input:  0.25 },
-    { model: 'Claude 2.1',                 provider: 'Anthropic',   elo: 1120, input:  8.00 },
-
-    // ── Google Legacy & Intermediate ─────────────────────────────────────────
-    { model: 'Gemini 2.0 Flash Thinking',  provider: 'Google',      elo: 1375, input:  0.15 },
-    { model: 'Gemini 2.0 Pro Exp',         provider: 'Google',      elo: 1360, input:  0.50 },
-    { model: 'Gemini 2.0 Flash',           provider: 'Google',      elo: 1345, input:  0.10 },
-    { model: 'Gemini 1.5 Pro (002)',        provider: 'Google',      elo: 1305, input:  1.25 },
-    { model: 'Gemini 1.5 Flash (002)',      provider: 'Google',      elo: 1260, input:  0.075},
-    { model: 'Gemini 1.5 Flash-8B',        provider: 'Google',      elo: 1210, input:  0.0375},
-    { model: 'Gemini 1.0 Ultra',           provider: 'Google',      elo: 1215, input:  7.00 },
-
-    // ── Meta Legacy & Intermediate ────────────────────────────────────────────
-    { model: 'Llama 3.3 70B Instruct',     provider: 'Meta',        elo: 1310, input:  0.60 },
-    { model: 'Llama 3.1 405B Instruct',    provider: 'Meta',        elo: 1285, input:  2.50 },
-    { model: 'Llama 3.1 70B Instruct',     provider: 'Meta',        elo: 1255, input:  0.50 },
-    { model: 'Llama 3.1 8B Instruct',      provider: 'Meta',        elo: 1180, input:  0.10 },
-    { model: 'Llama 3.2 90B Vision',       provider: 'Meta',        elo: 1240, input:  0.90 },
-    { model: 'Llama 3 70B Instruct',       provider: 'Meta',        elo: 1210, input:  0.50 },
-    { model: 'Llama 2 70B Chat',           provider: 'Meta',        elo: 1090, input:  0.70 },
-
-    // ── DeepSeek Legacy ───────────────────────────────────────────────────────
-    { model: 'DeepSeek V3',                provider: 'DeepSeek',    elo: 1360, input:  0.14 },
-    { model: 'DeepSeek V2.5',              provider: 'DeepSeek',    elo: 1310, input:  0.14 },
-    { model: 'DeepSeek Coder V2 (236B)',   provider: 'DeepSeek',    elo: 1265, input:  0.14 },
-
-    // ── Alibaba Qwen Legacy ───────────────────────────────────────────────────
-    { model: 'Qwen 3.7 Plus',              provider: 'Alibaba',     elo: 1370, input:  0.50 },
-    { model: 'QwQ-32B-Preview',            provider: 'Alibaba',     elo: 1350, input:  0.40 },
-    { model: 'Qwen 2.5 Max',               provider: 'Alibaba',     elo: 1340, input:  1.60 },
-    { model: 'Qwen 2.5 72B Instruct',      provider: 'Alibaba',     elo: 1260, input:  0.35 },
-    { model: 'Qwen 2.5 32B Instruct',      provider: 'Alibaba',     elo: 1220, input:  0.20 },
-    { model: 'Qwen 2 72B Instruct',        provider: 'Alibaba',     elo: 1225, input:  0.40 },
-
-    // ── Mistral AI Legacy ─────────────────────────────────────────────────────
-    { model: 'Mistral Large 2 (2407)',     provider: 'Mistral',     elo: 1300, input:  2.00 },
-    { model: 'Pixtral Large 124B',         provider: 'Mistral',     elo: 1280, input:  2.00 },
-    { model: 'Mistral Small 3 (24B)',       provider: 'Mistral',     elo: 1220, input:  0.20 },
-    { model: 'Mixtral 8x22B Instruct',     provider: 'Mistral',     elo: 1220, input:  0.90 },
-    { model: 'Mistral NeMo 12B',           provider: 'Mistral',     elo: 1195, input:  0.15 },
-
-    // ── Open Source & Community ───────────────────────────────────────────────
-    { model: 'Nous Hermes 3 (405B)',        provider: 'Open Source', elo: 1280, input:  2.50 },
-    { model: 'Jamba 1.5 Large',            provider: 'Open Source', elo: 1245, input:  2.00 },
-    { model: 'Solar Pro Preview',          provider: 'Open Source', elo: 1240, input:  0.60 },
-    { model: 'InternLM 2.5 20B',          provider: 'Open Source', elo: 1210, input:  0.25 },
-    { model: 'DBRX Instruct',             provider: 'Open Source', elo: 1195, input:  0.60 },
-    { model: 'Snowflake Arctic',           provider: 'Open Source', elo: 1180, input:  0.80 },
+  { model: 'Claude Fable 5.1', provider: 'Anthropic', elo: 1507, input: 10.00 },
+  { model: 'Claude Fable 5.1 Max', provider: 'Anthropic', elo: 1504, input: 15.00 },
+  { model: 'Claude Opus 4.6 (High)', provider: 'Anthropic', elo: 1505, input: 5.00 },
+  { model: 'Claude Opus 4.7 (High)', provider: 'Anthropic', elo: 1502, input: 5.00 },
+  { model: 'Muse Spark 1.2 (xHigh)', provider: 'Meta', elo: 1499, input: 1.25 },
+  { model: 'Claude Opus 4.6', provider: 'Anthropic', elo: 1498, input: 5.00 },
+  { model: 'Grok 4.6', provider: 'xAI', elo: 1496, input: 2.00 },
+  { model: 'Claude Opus 4.7', provider: 'Anthropic', elo: 1494, input: 5.00 },
+  { model: 'Gemini 3.8 Flash High', provider: 'Google', elo: 1494, input: 0.75 },
+  { model: 'Claude Opus 5 (High)', provider: 'Anthropic', elo: 1493, input: 5.00 },
+  { model: 'Muse Spark 1.1', provider: 'Meta', elo: 1492, input: 1.25 },
+  { model: 'Gemini 3.7 Flash High', provider: 'Google', elo: 1491, input: 0.75 },
+  { model: 'Kimi K3 Max', provider: 'Moonshot AI', elo: 1489, input: 3.00 },
+  { model: 'Claude Sonnet 5 (High)', provider: 'Anthropic', elo: 1486, input: 2.00 },
+  { model: 'GPT-5.5', provider: 'OpenAI', elo: 1485, input: 5.00 },
+  { model: 'GPT-5.6 Sol', provider: 'OpenAI', elo: 1483, input: 5.00 },
+  { model: 'GLM 5.3 Max', provider: 'Zhipu AI', elo: 1482, input: 1.40 },
+  { model: 'Qwen 3.8 Max', provider: 'Alibaba', elo: 1480, input: 2.00 },
+  { model: 'Gemini 3.1 Pro', provider: 'Google', elo: 1480, input: 2.00 },
+  { model: 'GPT-5.6 Terra', provider: 'OpenAI', elo: 1479, input: 2.00 },
+  { model: 'Muse Spark', provider: 'Meta', elo: 1474, input: 1.25 },
+  { model: 'GLM 5.3 Flash', provider: 'Zhipu AI', elo: 1473, input: 0.15 },
+  { model: 'Gemini 3.5 Flash', provider: 'Google', elo: 1470, input: 1.50 },
+  { model: 'Ernie 5.1', provider: 'Baidu', elo: 1468, input: 0.59 },
+  { model: 'GLM 5.2 (Max)', provider: 'Zhipu AI', elo: 1468, input: 1.40 },
+  { model: 'DeepSeek V4 Pro', provider: 'DeepSeek', elo: 1460, input: 0.43 },
+  { model: 'GPT-5.6 Luna', provider: 'OpenAI', elo: 1445, input: 0.20 },
+  { model: 'DeepSeek V4 Flash', provider: 'DeepSeek', elo: 1435, input: 0.14 },
+  { model: 'DeepSeek V3.2', provider: 'DeepSeek', elo: 1423, input: 0.28 },
+  { model: 'Mistral Large 3', provider: 'Mistral', elo: 1420, input: 3.00 },
+  { model: 'Qwen 3.8-Flash-Next', provider: 'Alibaba', elo: 1410, input: 0.20 },
+  { model: 'Llama 4 Scout', provider: 'Meta', elo: 1400, input: 0.11 },
+  { model: 'DeepSeek R1', provider: 'DeepSeek', elo: 1395, input: 0.55 },
+  { model: 'GPT-5.5 Pro', provider: 'OpenAI', elo: 1490, input: 30.00 },
+  { model: 'GPT-5.4 Pro', provider: 'OpenAI', elo: 1480, input: 30.00 },
+  { model: 'GPT-5.4', provider: 'OpenAI', elo: 1473, input: 2.50 },
+  { model: 'GPT-5.4 Mini', provider: 'OpenAI', elo: 1440, input: 0.75 },
+  { model: 'GPT-5.4 Nano', provider: 'OpenAI', elo: 1415, input: 0.20 },
+  { model: 'GPT-5.3', provider: 'OpenAI', elo: 1460, input: 1.75 },
+  { model: 'GPT-5.2', provider: 'OpenAI', elo: 1445, input: 1.25 },
+  { model: 'GPT-5.1', provider: 'OpenAI', elo: 1430, input: 1.25 },
+  { model: 'GPT-5', provider: 'OpenAI', elo: 1415, input: 1.25 },
+  { model: 'GPT-5 Mini', provider: 'OpenAI', elo: 1385, input: 0.25 },
+  { model: 'GPT-5 Nano', provider: 'OpenAI', elo: 1355, input: 0.05 },
+  { model: 'GPT-4.1', provider: 'OpenAI', elo: 1310, input: 10.00 },
+  { model: 'GPT-4.1 Mini', provider: 'OpenAI', elo: 1285, input: 0.40 },
+  { model: 'GPT-4.1 Nano', provider: 'OpenAI', elo: 1260, input: 0.10 },
+  { model: 'GPT-4.5 Preview', provider: 'OpenAI', elo: 1300, input: 75.00 },
+  { model: 'o4-mini', provider: 'OpenAI', elo: 1375, input: 1.10 },
+  { model: 'o4-mini (High)', provider: 'OpenAI', elo: 1385, input: 1.10 },
+  { model: 'o3', provider: 'OpenAI', elo: 1390, input: 2.00 },
+  { model: 'o3-pro', provider: 'OpenAI', elo: 1400, input: 20.00 },
+  { model: 'o3-mini', provider: 'OpenAI', elo: 1360, input: 1.10 },
+  { model: 'o1', provider: 'OpenAI', elo: 1355, input: 15.00 },
+  { model: 'o1-preview', provider: 'OpenAI', elo: 1335, input: 15.00 },
+  { model: 'o1-mini', provider: 'OpenAI', elo: 1305, input: 3.00 },
+  { model: 'GPT-4o', provider: 'OpenAI', elo: 1286, input: 2.50 },
+  { model: 'GPT-4o-mini', provider: 'OpenAI', elo: 1270, input: 0.15 },
+  { model: 'GPT-4 Turbo (0409)', provider: 'OpenAI', elo: 1248, input: 10.00 },
+  { model: 'GPT-3.5 Turbo', provider: 'OpenAI', elo: 1110, input: 0.50 },
+  { model: 'Claude Fable 5', provider: 'Anthropic', elo: 1500, input: 10.00 },
+  { model: 'Claude Opus 5', provider: 'Anthropic', elo: 1490, input: 5.00 },
+  { model: 'Claude Sonnet 5', provider: 'Anthropic', elo: 1480, input: 2.00 },
+  { model: 'Claude Haiku 4.5', provider: 'Anthropic', elo: 1390, input: 1.00 },
+  { model: 'Claude Opus 4.8', provider: 'Anthropic', elo: 1478, input: 5.00 },
+  { model: 'Claude Opus 4.5', provider: 'Anthropic', elo: 1462, input: 5.00 },
+  { model: 'Claude Opus 4.1', provider: 'Anthropic', elo: 1448, input: 5.00 },
+  { model: 'Claude Sonnet 4.6', provider: 'Anthropic', elo: 1430, input: 3.00 },
+  { model: 'Claude Sonnet 4.5', provider: 'Anthropic', elo: 1415, input: 3.00 },
+  { model: 'Claude Sonnet 4', provider: 'Anthropic', elo: 1400, input: 3.00 },
+  { model: 'Claude Opus 4', provider: 'Anthropic', elo: 1392, input: 5.00 },
+  { model: 'Claude 3.7 Sonnet (Thinking)', provider: 'Anthropic', elo: 1395, input: 3.00 },
+  { model: 'Claude 3.5 Sonnet (Oct)', provider: 'Anthropic', elo: 1340, input: 3.00 },
+  { model: 'Claude 3.5 Haiku', provider: 'Anthropic', elo: 1250, input: 0.80 },
+  { model: 'Claude 3 Opus', provider: 'Anthropic', elo: 1240, input: 15.00 },
+  { model: 'Claude 3 Sonnet', provider: 'Anthropic', elo: 1175, input: 3.00 },
+  { model: 'Claude 3 Haiku', provider: 'Anthropic', elo: 1155, input: 0.25 },
+  { model: 'Claude 2.1', provider: 'Anthropic', elo: 1120, input: 8.00 },
+  { model: 'Gemini 2.0 Flash Thinking', provider: 'Google', elo: 1375, input: 0.15 },
+  { model: 'Gemini 2.0 Pro Exp', provider: 'Google', elo: 1360, input: 0.50 },
+  { model: 'Gemini 2.0 Flash', provider: 'Google', elo: 1345, input: 0.10 },
+  { model: 'Gemini 1.5 Pro (002)', provider: 'Google', elo: 1305, input: 1.25 },
+  { model: 'Gemini 1.5 Flash (002)', provider: 'Google', elo: 1260, input: 0.075 },
+  { model: 'Gemini 1.5 Flash-8B', provider: 'Google', elo: 1210, input: 0.0375 },
+  { model: 'Gemini 1.0 Ultra', provider: 'Google', elo: 1215, input: 7.00 },
+  { model: 'Llama 3.3 70B Instruct', provider: 'Meta', elo: 1310, input: 0.60 },
+  { model: 'Llama 3.1 405B Instruct', provider: 'Meta', elo: 1285, input: 2.50 },
+  { model: 'Llama 3.1 70B Instruct', provider: 'Meta', elo: 1255, input: 0.50 },
+  { model: 'Llama 3.1 8B Instruct', provider: 'Meta', elo: 1180, input: 0.10 },
+  { model: 'Llama 3.2 90B Vision', provider: 'Meta', elo: 1240, input: 0.90 },
+  { model: 'Llama 3 70B Instruct', provider: 'Meta', elo: 1210, input: 0.50 },
+  { model: 'Llama 2 70B Chat', provider: 'Meta', elo: 1090, input: 0.70 },
+  { model: 'DeepSeek V3', provider: 'DeepSeek', elo: 1360, input: 0.14 },
+  { model: 'DeepSeek V2.5', provider: 'DeepSeek', elo: 1310, input: 0.14 },
+  { model: 'DeepSeek Coder V2 (236B)', provider: 'DeepSeek', elo: 1265, input: 0.14 },
+  { model: 'Qwen 3.7 Plus', provider: 'Alibaba', elo: 1370, input: 0.50 },
+  { model: 'QwQ-32B-Preview', provider: 'Alibaba', elo: 1350, input: 0.40 },
+  { model: 'Qwen 2.5 Max', provider: 'Alibaba', elo: 1340, input: 1.60 },
+  { model: 'Qwen 2.5 72B Instruct', provider: 'Alibaba', elo: 1260, input: 0.35 },
+  { model: 'Qwen 2.5 32B Instruct', provider: 'Alibaba', elo: 1220, input: 0.20 },
+  { model: 'Qwen 2 72B Instruct', provider: 'Alibaba', elo: 1225, input: 0.40 },
+  { model: 'Mistral Large 2 (2407)', provider: 'Mistral', elo: 1300, input: 2.00 },
+  { model: 'Pixtral Large 124B', provider: 'Mistral', elo: 1280, input: 2.00 },
+  { model: 'Mistral Small 3 (24B)', provider: 'Mistral', elo: 1220, input: 0.20 },
+  { model: 'Mixtral 8x22B Instruct', provider: 'Mistral', elo: 1220, input: 0.90 },
+  { model: 'Mistral NeMo 12B', provider: 'Mistral', elo: 1195, input: 0.15 },
+  { model: 'Nous Hermes 3 (405B)', provider: 'Open Source', elo: 1280, input: 2.50 },
+  { model: 'Jamba 1.5 Large', provider: 'Open Source', elo: 1245, input: 2.00 },
+  { model: 'Solar Pro Preview', provider: 'Open Source', elo: 1240, input: 0.60 },
+  { model: 'InternLM 2.5 20B', provider: 'Open Source', elo: 1210, input: 0.25 },
+  { model: 'DBRX Instruct', provider: 'Open Source', elo: 1195, input: 0.60 },
+  { model: 'Snowflake Arctic', provider: 'Open Source', elo: 1180, input: 0.80 },
 ];
 
-// Color palette mapping per provider
 const providerColors = {
-    'OpenAI':      '#10a37f',
-    'Anthropic':   '#d97706',
-    'Google':      '#4285f4',
-    'Meta':        '#0668e1',
-    'DeepSeek':    '#0284c7',
-    'Alibaba':     '#ea580c',
-    'Mistral':     '#f43f5e',
-    'Microsoft':   '#00a4ef',
-    'xAI':         '#e2e8f0',
-    'Moonshot AI': '#a855f7',
-    'Zhipu AI':    '#6366f1',
-    'Cohere':      '#14b8a6',
-    '01.AI':       '#8b5cf6',
-    'Baidu':       '#2563eb',
-    'Tencent':     '#059669',
-    'Open Source': '#94a3b8'
+  'OpenAI':'#10a37f','Anthropic':'#D97706','Google':'#4285f4','Meta':'#0668e1',
+  'DeepSeek':'#0EA5E9','Alibaba':'#EA580C','Mistral':'#F43F5E','xAI':'#E2E8F0',
+  'Moonshot AI':'#A78BFA','Zhipu AI':'#6366F1','Baidu':'#2563EB','Open Source':'#94A3B8'
 };
 
-let chartInstance = null;
-let filteredData = [];
-let allData     = [];         // full dataset from DB (or fallback)
-let sortField = 'elo';
-let sortDirection = -1;
-let usingApi = false;         // true when Flask is reachable
+let chartInstance=null, filteredData=[], allData=[], sortField='elo', sortDirection=-1, usingApi=false;
 
-// ── Helpers to ensure every model has input / input_cache / output ──────────
-function derivePrices(inp) {
-    inp = Number(inp) || 0;
-    const cache = Math.max(0.01, Math.round(inp * 0.25 * 10000) / 10000);
-    let out;
-    if (inp >= 5) out = Math.round(inp * 3.0 * 100) / 100;
-    else if (inp < 0.5) out = Math.round(inp * 4.0 * 100) / 100;
-    else out = Math.round(inp * 2.5 * 100) / 100;
-    return { input_cache: cache, output: out };
+function derivePrices(inp){
+  inp=Number(inp)||0;
+  const cache=Math.max(0.01, Math.round(inp*0.25*10000)/10000);
+  let out; if(inp>=5) out=Math.round(inp*3*100)/100; else if(inp<0.5) out=Math.round(inp*4*100)/100; else out=Math.round(inp*2.5*100)/100;
+  return {input_cache:cache, output:out};
 }
-function normalizeModel(m) {
-    const inp = Number(m.input) || 0;
-    let cache = m.input_cache;
-    if (cache === undefined || cache === null) cache = m.inputCache ?? m.cached_input ?? null;
-    let out = m.output;
-    if (out === undefined || out === null) out = m.output_price ?? m.outputPrice ?? null;
-    const derived = derivePrices(inp);
-    if (cache === null || cache === undefined || cache === 0) cache = derived.input_cache;
-    if (out === null || out === undefined || out === 0) out = derived.output;
-    const norm = { ...m, input: inp, input_cache: Number(cache), output: Number(out) };
-    norm.daily_cost = estimatedDailyCost(norm);
-    return norm;
+function estimatedDailyCost(m){
+  const c=Number(m.input_cache)||0, o=Number(m.output)||0;
+  return ((2000*c+50*o)/1e6)*1200;
 }
-function fmtPrice(v) {
-    const n = Number(v);
-    if (isNaN(n)) return '-';
-    if (n < 0.1) return '$' + n.toFixed(3);
-    return '$' + n.toFixed(2);
+function normalizeModel(m){
+  const inp=Number(m.input)||0;
+  let cache=m.input_cache ?? m.inputCache ?? m.cached_input ?? null;
+  let out=m.output ?? m.output_price ?? m.outputPrice ?? null;
+  const d=derivePrices(inp);
+  if(cache==null||cache==0) cache=d.input_cache;
+  if(out==null||out==0) out=d.output;
+  const n={...m, input:inp, input_cache:Number(cache), output:Number(out)};
+  n.daily_cost=Number((n.daily_cost ?? estimatedDailyCost(n)).toFixed(2));
+  // ensure precise cost used for filtering (recompute)
+  n.daily_cost = estimatedDailyCost(n);
+  return n;
 }
-// ── Estimated daily cost: (2000 cached input + 50 output) ×50×24 = ×1200 req/day ──
-const TOKENS_IN_CACHED = 2000;
-const TOKENS_OUT = 50;
-const REQS_PER_DAY = 50 * 24; // 1200
-function estimatedDailyCost(m) {
-    const cache = Number(m.input_cache) || 0;
-    const out   = Number(m.output) || 0;
-    // (tokens/1M)*price * reqs_per_day
-    return ((TOKENS_IN_CACHED * cache + TOKENS_OUT * out) / 1_000_000) * REQS_PER_DAY;
+function fmtPrice(v){ const n=Number(v); if(isNaN(n)) return '-'; return n<0.1 ? `$${n.toFixed(3)}` : `$${n.toFixed(2)}`; }
+
+function setStatus(msg, ok){
+  const el=document.getElementById('db-status');
+  el.textContent=msg;
+  el.style.color = ok===true ? '#3DD68C' : ok===false ? '#F59E0B' : 'var(--text-3)';
 }
 
-// ── Status banner ─────────────────────────────────────────────────────────────
-function setStatus(msg, color) {
-    let bar = document.getElementById('db-status');
-    bar.textContent = msg;
-    bar.style.color = color;
+async function init(){
+  try{
+    const pr=await fetch(`${API_BASE}/providers`, {signal:AbortSignal.timeout(2000)});
+    if(!pr.ok) throw new Error('providers');
+    const providers=await pr.json();
+    populateProviderSelect(providers);
+    const mr=await fetch(`${API_BASE}/models`, {signal:AbortSignal.timeout(3000)});
+    if(!mr.ok) throw new Error('models');
+    allData=(await mr.json()).map(normalizeModel);
+    usingApi=true;
+    setStatus(`● Live — ${allData.length} models from SQLite`, true);
+  }catch(e){
+    allData=rawModels.map(normalizeModel);
+    usingApi=false;
+    populateProviderSelect([...new Set(allData.map(m=>m.provider))].sort());
+    setStatus(`○ Offline — ${allData.length} built-in models (run server.py for live DB)`, false);
+  }
+  document.getElementById('total-count').textContent=allData.length;
+  document.getElementById('search-input').addEventListener('input', applyFilters);
+  document.getElementById('provider-select').addEventListener('change', applyFilters);
+  document.getElementById('min-elo-range').addEventListener('input', e=>{ document.getElementById('min-elo-val').textContent=e.target.value; applyFilters(); });
+  document.getElementById('max-price-range').addEventListener('input', e=>{ document.getElementById('max-price-val').textContent=`$${e.target.value}`; applyFilters(); });
+  document.getElementById('scale-select').addEventListener('change', ()=>{ document.getElementById('scale-hint').textContent=document.getElementById('scale-select').value==='logarithmic'?'Log scale':'Linear'; renderChart(); });
+  applyFilters();
 }
-
-// ── Bootstrap: try API first, fall back to rawModels ─────────────────────────
-async function init() {
-    try {
-        // 1. Load providers from API
-        const provRes = await fetch(`${API_BASE}/providers`, { signal: AbortSignal.timeout(2000) });
-        if (!provRes.ok) throw new Error('providers endpoint failed');
-        const providers = await provRes.json();
-        populateProviderSelect(providers);
-
-        // 2. Load all models from API
-        const modRes = await fetch(`${API_BASE}/models`, { signal: AbortSignal.timeout(3000) });
-        if (!modRes.ok) throw new Error('models endpoint failed');
-        allData = (await modRes.json()).map(normalizeModel);
-        usingApi = true;
-        setStatus(`✅ Connected to SQLite via API — ${allData.length} models loaded`, '#4ade80');
-    } catch (err) {
-        // Fallback to hardcoded array
-        allData = rawModels.map(normalizeModel);
-        usingApi = false;
-        const providers = [...new Set(allData.map(m => m.provider))].sort();
-        populateProviderSelect(providers);
-        setStatus(`⚠️ API unreachable — using built-in data (${rawModels.length} models). Run server.py to enable live DB.`, '#f59e0b');
-    }
-
-    document.getElementById('total-count').textContent = allData.length;
-
-    document.getElementById('search-input').addEventListener('input', applyFilters);
-    document.getElementById('provider-select').addEventListener('change', applyFilters);
-    document.getElementById('min-elo-range').addEventListener('input', (e) => {
-        document.getElementById('min-elo-val').textContent = e.target.value;
-        applyFilters();
-    });
-    document.getElementById('max-price-range').addEventListener('input', (e) => {
-        document.getElementById('max-price-val').textContent = '$' + e.target.value;
-        applyFilters();
-    });
-    document.getElementById('scale-select').addEventListener('change', renderChart);
-
-    applyFilters();
+function populateProviderSelect(providers){
+  const s=document.getElementById('provider-select');
+  while(s.options.length>1) s.remove(1);
+  providers.forEach(p=>{ const o=document.createElement('option'); o.value=p; o.textContent=p; s.appendChild(o); });
 }
-
-function populateProviderSelect(providers) {
-    const select = document.getElementById('provider-select');
-    // Clear existing options beyond the first "All Providers"
-    while (select.options.length > 1) select.remove(1);
-    providers.forEach(p => {
-        const opt = document.createElement('option');
-        opt.value = p;
-        opt.textContent = p;
-        select.appendChild(opt);
-    });
+async function applyFilters(){
+  const search=document.getElementById('search-input').value.trim();
+  const provider=document.getElementById('provider-select').value;
+  const minElo=parseFloat(document.getElementById('min-elo-range').value);
+  const maxPrice=parseFloat(document.getElementById('max-price-range').value);
+  if(usingApi){
+    const params=new URLSearchParams({min_elo:minElo, max_daily_cost:maxPrice});
+    if(search) params.set('q', search);
+    if(provider&&provider!=='ALL') params.set('provider', provider);
+    try{
+      const r=await fetch(`${API_BASE}/models?${params}`, {signal:AbortSignal.timeout(3000)});
+      const data=(await r.json()).map(normalizeModel);
+      filteredData=data.filter(m=>m.daily_cost<=maxPrice);
+    }catch{ filteredData=clientFilter(allData,search,provider,minElo,maxPrice); }
+  } else filteredData=clientFilter(allData,search,provider,minElo,maxPrice);
+  document.getElementById('visible-count').textContent=filteredData.length;
+  renderChart(); renderTable();
 }
-
-// ── Filters: if API is live, query it; otherwise filter in-memory ─────────────
-async function applyFilters() {
-    const search   = document.getElementById('search-input').value.trim();
-    const provider = document.getElementById('provider-select').value;
-    const minElo   = parseFloat(document.getElementById('min-elo-range').value);
-    const maxPrice = parseFloat(document.getElementById('max-price-range').value);
-
-    if (usingApi) {
-        // Build query string and fetch from SQLite via API (filter by daily cost server-side)
-        const params = new URLSearchParams({ min_elo: minElo, max_daily_cost: maxPrice });
-        if (search)                    params.set('q', search);
-        if (provider && provider !== 'ALL') params.set('provider', provider);
-        try {
-            const res = await fetch(`${API_BASE}/models?${params}`, { signal: AbortSignal.timeout(3000) });
-            const data = (await res.json()).map(normalizeModel);
-            // extra client-side clamp in case API still returns out-of-range due to legacy max_input
-            filteredData = data.filter(m => m.daily_cost <= maxPrice);
-        } catch {
-            // API went down mid-session — fall back silently
-            filteredData = clientFilter(allData, search, provider, minElo, maxPrice);
-        }
-    } else {
-        filteredData = clientFilter(allData, search, provider, minElo, maxPrice);
-    }
-
-    document.getElementById('visible-count').textContent = filteredData.length;
-    renderChart();
-    renderTable();
+function clientFilter(data,search,provider,minElo,maxPrice){
+  const q=search.toLowerCase();
+  return data.filter(m=>{
+    const s=!q||m.model.toLowerCase().includes(q)||m.provider.toLowerCase().includes(q);
+    const p=!provider||provider==='ALL'||m.provider===provider;
+    const e=m.elo>=minElo;
+    const c=(m.daily_cost??estimatedDailyCost(m))<=maxPrice;
+    return s&&p&&e&&c;
+  });
 }
-
-function clientFilter(data, search, provider, minElo, maxPrice) {
-    const q = search.toLowerCase();
-    return data.filter(m => {
-        const matchesSearch   = !q || m.model.toLowerCase().includes(q) || m.provider.toLowerCase().includes(q);
-        const matchesProvider = !provider || provider === 'ALL' || m.provider === provider;
-        const matchesElo      = m.elo >= minElo;
-        const daily = m.daily_cost ?? estimatedDailyCost(m);
-        const matchesPrice    = daily <= maxPrice;
-        return matchesSearch && matchesProvider && matchesElo && matchesPrice;
-    });
-}
-
-function renderChart() {
-    const isLog = document.getElementById('scale-select').value === 'logarithmic';
-    const ctx = document.getElementById('benchmarkChart').getContext('2d');
-
-    const grouped = {};
-    filteredData.forEach(d => {
-        if (!grouped[d.provider]) grouped[d.provider] = [];
-        const daily = d.daily_cost ?? estimatedDailyCost(d);
-        grouped[d.provider].push({ x: daily, y: d.elo, raw: d });
-    });
-
-    const datasets = Object.keys(grouped).map(prov => ({
-        label: prov,
-        data: grouped[prov],
-        backgroundColor: providerColors[prov] || '#94a3b8',
-        borderColor: '#0f172a',
-        borderWidth: 1,
-        pointRadius: 6,
-        pointHoverRadius: 9
-    }));
-
-    if (chartInstance) chartInstance.destroy();
-
-    chartInstance = new Chart(ctx, {
-        type: 'scatter',
-        data: { datasets },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'top', labels: { color: '#94a3b8', boxWidth: 10, font: { size: 11 } } },
-                tooltip: {
-                    backgroundColor: '#0f172a',
-                    borderColor: '#334155',
-                    borderWidth: 1,
-                    titleColor: '#fff',
-                    bodyColor: '#94a3b8',
-                    callbacks: {
-                        label: (ctx) => {
-                            const d = ctx.raw.raw;
-                            const daily = d.daily_cost ?? estimatedDailyCost(d);
-                            return `${d.model} (${d.provider}): ${d.elo} Elo | In $${d.input} Cache $${d.input_cache} Out $${d.output} /1M → $${daily.toFixed(2)}/day`;
-                        },
-                        afterLabel: (ctx) => {
-                            const d = ctx.raw.raw;
-                            return `  = (2000×$${d.input_cache} + 50×$${d.output})/1M ×1200`;
-                        }
-                    }
-                }
+function renderChart(){
+  const isLog=document.getElementById('scale-select').value==='logarithmic';
+  const ctx=document.getElementById('benchmarkChart').getContext('2d');
+  const grouped={};
+  filteredData.forEach(d=>{ const v=d.daily_cost??estimatedDailyCost(d); if(!grouped[d.provider]) grouped[d.provider]=[]; grouped[d.provider].push({x:v, y:d.elo, raw:d}); });
+  const datasets=Object.keys(grouped).map(prov=>({
+    label:prov, data:grouped[prov],
+    backgroundColor:providerColors[prov]||'#94A3B8', borderColor:'rgba(6,10,22,.9)', borderWidth:1.2,
+    pointRadius:5.5, pointHoverRadius:8, pointHoverBorderWidth:1.5
+  }));
+  if(chartInstance) chartInstance.destroy();
+  Chart.defaults.font.family='Inter';
+  chartInstance=new Chart(ctx,{
+    type:'scatter', data:{datasets},
+    options:{
+      responsive:true, maintainAspectRatio:false, interaction:{mode:'nearest', intersect:false},
+      plugins:{
+        legend:{position:'top', labels:{color:'#8EA0BF', boxWidth:10, boxHeight:10, usePointStyle:true, pointStyle:'circle', font:{size:11, weight:'600'}, padding:14}},
+        tooltip:{
+          backgroundColor:'#0B1224', borderColor:'#1E3356', borderWidth:1, titleColor:'#EAF0FF', bodyColor:'#8EA0BF',
+          padding:10, cornerRadius:10, displayColors:true,
+          callbacks:{
+            label: c=>{
+              const d=c.raw.raw; const day=d.daily_cost??estimatedDailyCost(d);
+              return `${d.model} — ${d.provider} · ${d.elo} Elo · $${day.toFixed(2)}/day`;
             },
-            scales: {
-                x: {
-                    type: isLog ? 'logarithmic' : 'linear',
-                    title: { display: true, text: 'Est. Cost / Day — (2000 cached input + 50 output) ×50×24 ($/day)', color: '#94a3b8' },
-                    grid: { color: 'rgba(255,255,255,0.05)' },
-                    ticks: { color: '#94a3b8', callback: v => '$' + v },
-                    min: isLog ? 0.02 : 0
-                },
-                y: {
-                    title: { display: true, text: 'Chatbot Arena Elo Rating', color: '#94a3b8' },
-                    grid: { color: 'rgba(255,255,255,0.05)' },
-                    ticks: { color: '#94a3b8' },
-                    min: 1050,
-                    max: 1550
-                }
+            afterLabel: c=>{
+              const d=c.raw.raw; return `  In $${d.input}  Cache $${d.input_cache}  Out $${d.output} /1M  → (2000×${d.input_cache}+50×${d.output})/1M×1200`;
             }
+          }
         }
-    });
-}
-
-function renderTable() {
-    const tbody = document.getElementById('table-body');
-    tbody.innerHTML = '';
-
-    filteredData.sort((a, b) => {
-        if (typeof a[sortField] === 'string') {
-            return a[sortField].localeCompare(b[sortField]) * sortDirection;
+      },
+      scales:{
+        x:{
+          type:isLog?'logarithmic':'linear',
+          title:{display:true, text:'Estimated cost / day — (2000 cached + 50 out) ×1 200 ($/day)', color:'#8EA0BF', font:{size:12, weight:'700'}},
+          grid:{color:'rgba(255,255,255,.05)'}, ticks:{color:'#8EA0BF', callback:v=>'$'+v, font:{family:'JetBrains Mono', size:11}},
+          border:{color:'rgba(255,255,255,.06)'}, min:isLog?0.03:0
+        },
+        y:{
+          title:{display:true, text:'Arena Elo', color:'#8EA0BF', font:{size:12, weight:'700'}},
+          grid:{color:'rgba(255,255,255,.05)'}, ticks:{color:'#8EA0BF', font:{family:'JetBrains Mono', size:11}}, border:{color:'rgba(255,255,255,.06)'}, min:1050, max:1550
         }
-        return (a[sortField] - b[sortField]) * sortDirection;
-    });
-
-    filteredData.forEach(d => {
-        const daily = d.daily_cost ?? estimatedDailyCost(d);
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td><strong>${d.model}</strong></td>
-            <td><span style="color:${providerColors[d.provider] || '#fff'};">●</span> ${d.provider}</td>
-            <td class="numeric">${d.elo}</td>
-            <td class="numeric">${fmtPrice(d.input)}</td>
-            <td class="numeric">${fmtPrice(d.input_cache)}</td>
-            <td class="numeric">${fmtPrice(d.output)}</td>
-            <td class="numeric" title="(2000×${d.input_cache}+50×${d.output})/1M×1200">$${daily.toFixed(2)}</td>
-        `;
-        tbody.appendChild(tr);
-    });
-}
-
-function sortTable(field) {
-    if (sortField === field) {
-        sortDirection *= -1;
-    } else {
-        sortField = field;
-        sortDirection = field === 'model' || field === 'provider' ? 1 : -1;
+      }
     }
-    renderTable();
+  });
 }
-
-window.onload = init;
+function renderTable(){
+  const tb=document.getElementById('table-body'); tb.innerHTML='';
+  filteredData.sort((a,b)=>{
+    const av=a[sortField], bv=b[sortField];
+    if(typeof av==='string') return av.localeCompare(bv)*sortDirection;
+    return (av-bv)*sortDirection;
+  });
+  document.getElementById('table-meta').textContent=`Sorted by ${sortField}${sortDirection>0?' ↑':' ↓'} • ${filteredData.length} shown`;
+  if(!filteredData.length){ tb.innerHTML=`<tr><td colspan="7"><div class="empty">No models match your filters — loosen search, Elo or daily cost.</div></td></tr>`; return; }
+  filteredData.forEach(d=>{
+    const day=d.daily_cost??estimatedDailyCost(d);
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td><strong>${d.model}</strong></td>
+      <td><span class="provider"><span class="pdot" style="background:${providerColors[d.provider]||'#94A3B8'}"></span> ${d.provider}</span></td>
+      <td class="numeric elo">${d.elo}</td>
+      <td class="numeric muted">${fmtPrice(d.input)}</td>
+      <td class="numeric muted">${fmtPrice(d.input_cache)}</td>
+      <td class="numeric muted">${fmtPrice(d.output)}</td>
+      <td class="numeric"><span class="cost-pill" title="(2000×${d.input_cache}+50×${d.output})/1M×1200">$${day.toFixed(2)}</span></td>
+    `;
+    tb.appendChild(tr);
+  });
+}
+function sortTable(f){ if(sortField===f) sortDirection*=-1; else {sortField=f; sortDirection=f==='model'||f==='provider'?1:-1;} renderTable(); }
+window.sortTable=sortTable;
+window.onload=init;
 </script>
-
 </body>
 </html>

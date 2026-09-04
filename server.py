@@ -228,6 +228,8 @@ def delete_model(model_id):
 
 # ── Frontend + health ───────────────────────────────────────────────────────
 @app.get("/")
+@app.get("/index.html")
+@app.get("/ai_benchmark_explorer.html")
 def serve_frontend():
     return send_from_directory(os.path.dirname(os.path.abspath(__file__)), HTML_FILE)
 
