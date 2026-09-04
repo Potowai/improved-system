@@ -9,14 +9,14 @@ Endpoints:
   DELETE /api/models/<id>   — delete a model
 """
 
-import sqlite3, json
+import sqlite3, json, os
 from flask import Flask, request, jsonify, g
 from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
 
-DB_PATH = "/home/claude/ai_models.db"
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ai_models.db")
 
 
 def get_db():

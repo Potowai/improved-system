@@ -3,9 +3,9 @@ seed_db.py — Creates ai_models.db and seeds it with all rawModels data.
 Run once (or re-run to reset): python3 seed_db.py
 """
 
-import sqlite3
+import sqlite3, os
 
-DB_PATH = "/home/claude/ai_models.db"
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ai_models.db")
 
 RAW_MODELS = [
     # ── 2026 Frontier Giants ─────────────────────────────────────────────────
